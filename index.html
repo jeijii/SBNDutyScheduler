@@ -83,6 +83,7 @@
       let totalDuty = 0;
       const preferences = [];
       let schedule;
+      let table;
       function lap(dim, cost) {
         //from https://github.com/Fil/lap-jv
         //thank you to whoever made it i love u
@@ -407,10 +408,10 @@
           totalScores.push(getScoresArray(preferences[i], excluded[i]));
         }
         let result = lap(totalDuty, totalScores);
-        log("Schedule Calculated!", "log");
+        log("Schedule Calculated! Press on empty cell to add reserve", "log");
         schedule = mapResultToName(result.row);
         console.log(schedule);
-        let table = mapDutiesToTableFormat();
+        table = mapDutiesToTableFormat();
         //hide dropzone
         document.querySelector("#dropzone").setAttribute("hidden", true);
         createHTMLTable(table);
@@ -485,6 +486,11 @@
           }
         }
         document.querySelector("#editor").appendChild(table);
+
+        let button = document.createElement("button");
+        button.setAttribute("onclick", "download()");
+        button.innerHTML = "Export as CSV";
+        document.querySelector("#editor").appendChild(button);
       }
       function addReserve(id) {
         let val = id.split("_")[1].split("-");
@@ -497,12 +503,68 @@
         }
         if (cell.innerHTML == "") {
           cell.innerHTML = "R";
+          table[val[0]][val[1]] = "R";
+          console.log(table);
           return;
         }
         if (cell.innerHTML == "R") {
           cell.innerHTML = "";
+          table[val[0]][val[1]] = "";
           return;
         }
+      }
+
+      function download() {
+        let months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        let filename =
+          "Duty-" +
+          months[new Date().getMonth()] +
+          "-" +
+          new Date().getFullYear() +
+          ".csv";
+        let str = "";
+        for (let i = 0; i < table.length; i++) {
+          for (let x = 0; x < table[i].length; x++) {
+            str += table[i][x];
+            if (x < table[i].length - 1) {
+              str += ",";
+            }
+          }
+          str += "\n";
+        }
+
+        let blob = new Blob([str], { type: "text/csv;charset=utf-8;" });
+        if (navigator.msSaveBlob) {
+          // IE 10+
+          navigator.msSaveBlob(blob, filename);
+        } else {
+          var link = document.createElement("a");
+          if (link.download !== undefined) {
+            // feature detection
+            // Browsers that support HTML5 download attribute
+            var url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }
+        console.log(str);
       }
     </script>
   </body>
