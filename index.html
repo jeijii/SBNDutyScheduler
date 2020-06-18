@@ -476,11 +476,33 @@
           let row = table.insertRow();
           for (let x = 0; x < tableArr[i].length; x++) {
             let cell = row.insertCell();
-            console.log(tableArr[i][x]);
+            cell.setAttribute("id", "id_" + i + "-" + x);
+            cell.setAttribute(
+              "onclick",
+              'addReserve("id_' + i + "-" + x + '")'
+            );
             cell.innerHTML = tableArr[i][x];
           }
         }
         document.querySelector("#editor").appendChild(table);
+      }
+      function addReserve(id) {
+        let val = id.split("_")[1].split("-");
+        if (val[0] == 0 || val[1] == 0) {
+          return;
+        }
+        let cell = document.querySelector("#" + id);
+        if (cell.innerHTML == 1) {
+          return;
+        }
+        if (cell.innerHTML == "") {
+          cell.innerHTML = "R";
+          return;
+        }
+        if (cell.innerHTML == "R") {
+          cell.innerHTML = "";
+          return;
+        }
       }
     </script>
   </body>
