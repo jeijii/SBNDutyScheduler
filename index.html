@@ -385,36 +385,27 @@
       function parseCSV(csv) {
         //todo: clear all values;
         let lines = csv.split("\n");
-        console.log(lines);
         for (let i = 1; i < lines.length; i++) {
           let val = lines[i].split(",");
-          names.push(val[0]);
-          if (!isNaN(val[1])) {
-            noOfDuty.push(Number(val[1]));
-            totalDuty += Number(val[1]);
-          }
-          excludedResponses.push([val[7], val[8]]);
-          responses.push([val[2], val[3], val[4], val[5], val[6]]);
+          names.push(val[1]);
+          // if (!isNaN(val[1])) {
+          //   noOfDuty.push(Number(val[1]));
+          //   totalDuty += Number(val[1]);
+          // }
+          excludedResponses.push([val[7].split("/")[0], val[8].split("/")[0]]);
+          responses.push([
+            val[2].split("/")[0],
+            val[3].split("/")[0],
+            val[4].split("/")[0],
+            val[5].split("/")[0],
+            val[6].split("/")[0],
+          ]);
         }
-        //responses * no of duty
-        for (let i = 0; i < responses.length; i++) {
-          for (let x = 0; x < noOfDuty[i]; x++) {
-            preferences.push(responses[i]);
-            excluded.push(excludedResponses[i]);
-            totalNames.push(names[i]);
-          }
-        }
-        for (let i = 0; i < preferences.length; i++) {
-          totalScores.push(getScoresArray(preferences[i], excluded[i]));
-        }
-        let result = lap(totalDuty, totalScores);
-        log("Schedule Calculated! Press on empty cell to add reserve", "log");
-        schedule = mapResultToName(result.row);
-        console.log(schedule);
-        table = mapDutiesToTableFormat();
+        console.log(responses);
         //hide dropzone
         document.querySelector("#dropzone").setAttribute("hidden", true);
-        createHTMLTable(table);
+        //show names to get amt of duty
+        setNoOfDuty();
       }
       function getScoresArray(preference, excluded) {
         let pref = [];
@@ -470,6 +461,86 @@
           arr.push(curArr);
         }
         return arr;
+      }
+      function handleInput(e) {
+        let inputs = document.querySelectorAll("input");
+        let dutyCount = 0;
+        for (let i = 0; i < inputs.length; i++) {
+          if (!isNaN(inputs[i].value)) {
+            dutyCount += Number(inputs[i].value);
+          }
+        }
+        document.querySelector("#dutycount").innerHTML =
+          "Number of Duties, Total: " + dutyCount;
+        totalDuty = dutyCount;
+      }
+      function setNoOfDuty() {
+        let table = document.createElement("table");
+        let row = table.insertRow();
+        let name = row.insertCell();
+        name.innerHTML = "Name";
+        let duties = row.insertCell();
+        duties.innerHTML = "Number of Duties";
+        duties.setAttribute("id", "dutycount");
+        for (let i = 0; i < names.length; i++) {
+          let row = table.insertRow();
+          let cell = row.insertCell();
+          cell.innerHTML = names[i];
+          let input = row.insertCell();
+          let inpt = document.createElement("input");
+          inpt.setAttribute("type", "text");
+          inpt.addEventListener("input", handleInput);
+          input.appendChild(inpt);
+        }
+        document.querySelector("#editor").appendChild(table);
+
+        let button = document.createElement("button");
+        button.setAttribute("onclick", "setDutyCount()");
+        button.innerHTML = "Create Schedule";
+        document.querySelector("#editor").appendChild(button);
+      }
+      function setDutyCount() {
+        //check if all inputs are filled
+        let inputs = document.querySelectorAll("input");
+        for (let i = 0; i < inputs.length; i++) {
+          if (inputs[i].value == "") {
+            log("Number of Duties are not completely filled!", "error");
+            return;
+          }
+          //todo:  implement character check
+        }
+        //set duties per person
+        for (let i = 0; i < inputs.length; i++) {
+          noOfDuty.push(inputs[i].value);
+        }
+        //refresh div
+        var element = document.getElementById("editor");
+        element.parentNode.removeChild(element);
+        let div = document.createElement("div");
+        div.setAttribute("id", "editor");
+        document.body.appendChild(div);
+        createSchedule();
+      }
+      function createSchedule() {
+        //responses * no of duty
+
+        for (let i = 0; i < responses.length; i++) {
+          for (let x = 0; x < noOfDuty[i]; x++) {
+            preferences.push(responses[i]);
+            excluded.push(excludedResponses[i]);
+            totalNames.push(names[i]);
+          }
+        }
+        for (let i = 0; i < preferences.length; i++) {
+          totalScores.push(getScoresArray(preferences[i], excluded[i]));
+        }
+        let result = lap(totalDuty, totalScores);
+        log("Schedule Calculated! Press on empty cell to add reserve", "log");
+        schedule = mapResultToName(result.row);
+        console.log(schedule);
+        table = mapDutiesToTableFormat();
+
+        createHTMLTable(table);
       }
       function createHTMLTable(tableArr) {
         let table = document.createElement("table");
@@ -564,7 +635,7 @@
             document.body.removeChild(link);
           }
         }
-        console.log(str);
+        log("Exported to CSV!", "log");
       }
     </script>
   </body>
