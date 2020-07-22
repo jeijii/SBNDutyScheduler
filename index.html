@@ -63,6 +63,21 @@
       ondrop="dropHandler(event);"
       ondragover="dragOverHandler(event)"
     >
+      <p>Select Duty Month</p>
+      <select id="month">
+        <option value="0">January</option>
+        <option value="1">February</option>
+        <option value="2">March</option>
+        <option value="3">April</option>
+        <option value="4">May</option>
+        <option value="5">June</option>
+        <option value="6">July</option>
+        <option value="7">August</option>
+        <option value="8">September</option>
+        <option value="9">October</option>
+        <option value="10">November</option>
+        <option value="11">December</option>
+      </select>
       <p>Drop Preferences Files Here.</p>
     </div>
     <div id="editor"></div>
@@ -70,6 +85,15 @@
       <p id="console">Ready</p>
     </div>
     <script>
+      String.prototype.includes = function (str) {
+        var returnValue = false;
+
+        if (this.indexOf(str) !== -1) {
+          returnValue = true;
+        }
+
+        return returnValue;
+      };
       const COST_VALUES = [0, 1, 4, 9, 16];
       const OUT_OF_PREFERENCE_COST = 36;
       const EXCLUDED_DATES_COST = 999;
@@ -81,9 +105,12 @@
       const totalScores = [];
       const totalNames = [];
       let totalDuty = 0;
+      let weekdays = [];
+      let weekends = [];
       const preferences = [];
       let schedule;
       let table;
+      let dates;
       function lap(dim, cost) {
         //from https://github.com/Fil/lap-jv
         //thank you to whoever made it i love u
@@ -387,6 +414,9 @@
         let lines = csv.split("\n");
         for (let i = 1; i < lines.length; i++) {
           let val = lines[i].split(",");
+          if (!val[1]) {
+            continue;
+          }
           names.push(val[1]);
           // if (!isNaN(val[1])) {
           //   noOfDuty.push(Number(val[1]));
@@ -407,7 +437,36 @@
         //show names to get amt of duty
         setNoOfDuty();
       }
-      function getScoresArray(preference, excluded) {
+      //update: get word stayout in the name to exclude all dates except weekend
+      //fix weekend assignment
+      function getScoresArray(preference, excluded, name) {
+        console.log(name);
+        if (name.includes("(Stay Out)")) {
+          let pref = [];
+          for (let i = 0; i < totalDuty; i++) {
+            pref.push(EXCLUDED_DATES_COST);
+          }
+          for (let i = 0; i < preference.length; i++) {
+            if (preference[i].length != 0) {
+              if (dates.weekends.indexOf(Number(preference[i])) !== -1) {
+                let indexOfWkend = dates.weekends.indexOf(
+                  Number(preference[i])
+                );
+                console.log(indexOfWkend);
+                pref[dates.weekendsDuties[indexOfWkend][0] - 1] =
+                  COST_VALUES[i];
+              } else {
+                pref[Number(preference[i]) - 1] = COST_VALUES[i];
+              }
+            }
+          }
+          for (let i = 0; i < excluded.length; i++) {
+            if (excluded[i].length != 0) {
+              pref[Number(excluded[i]) - 1] = EXCLUDED_DATES_COST;
+            }
+          }
+          return pref;
+        }
         let pref = [];
         const scores = [30, 25, 22, 22, 35];
         for (let i = 0; i < totalDuty; i++) {
@@ -425,6 +484,27 @@
         }
         return pref;
       }
+      function convertDutytoDate(duty) {
+        let month = Number(document.querySelector("#month").value);
+        let year = new Date().getFullYear();
+        let days = new Date(year, month + 1, 0).getDate();
+        let tmp = 0;
+        for (let i = 0; i <= days; i++) {
+          let day = new Date(year, month, i).getDay();
+          if (day == 0 || day == 6) {
+            tmp += 1;
+            if (tmp == duty) {
+              return i;
+            }
+            tmp += 1;
+          } else {
+            tmp += 1;
+          }
+          if (tmp == duty) {
+            return i + 1;
+          }
+        }
+      }
       function mapResultToName(result) {
         let arr = [];
         for (let i = 0; i < names.length; i++) {
@@ -434,7 +514,9 @@
           };
           for (let x = 0; x < result.length; x++) {
             if (totalNames[x] === names[i]) {
-              obj.duties.push(result[x] + 1);
+              console.log(result[x] + 1);
+              console.log(convertDutytoDate(result[x] + 1));
+              obj.duties.push(convertDutytoDate(result[x] + 1));
             }
           }
           arr.push(obj);
@@ -442,17 +524,20 @@
         return arr;
       }
       function mapDutiesToTableFormat() {
+        let month = Number(document.querySelector("#month").value);
+        let year = new Date().getFullYear();
         let arr = [];
         let firstRow = [];
+        let dutyCount = new Date(year, month + 1, 0).getDate();
         firstRow.push("Name");
-        for (let i = 0; i < totalDuty; i++) {
+        for (let i = 0; i < dutyCount; i++) {
           firstRow.push(i + 1);
         }
         arr.push(firstRow);
         for (let i = 0; i < schedule.length; i++) {
           let curArr = [];
           curArr.push(schedule[i].name);
-          for (let x = 0; x < totalDuty; x++) {
+          for (let x = 0; x < dutyCount; x++) {
             curArr.push("");
           }
           for (let z = 0; z < schedule[i].duties.length; z++) {
@@ -460,7 +545,49 @@
           }
           arr.push(curArr);
         }
+        console.log(arr);
         return arr;
+      }
+      //calculate total duties a week
+      //two duties per weekend
+      function totalDutyCount() {
+        let month = Number(document.querySelector("#month").value);
+        console.log(month);
+        let year = new Date().getFullYear();
+        console.log(year);
+        let days = new Date(year, month + 1, 0).getDate();
+        let currtotalDuty = 0;
+        let wkdaysd = [];
+        let wkendsd = [];
+        let wkend = [];
+        let wkday = [];
+        for (var i = 0; i < days; i++) {
+          let day = new Date(year, month, i + 1).getDay();
+          console.log(new Date(year, month, i + 1));
+          if (day == 0 || day == 6) {
+            let wk = [];
+            currtotalDuty += 1;
+            wk.push(currtotalDuty);
+            currtotalDuty += 1;
+            wkend.push(i);
+            wk.push(currtotalDuty);
+            wkendsd.push(wk);
+          } else {
+            wkday.push(i);
+            currtotalDuty += 1;
+            wkdaysd.push(currtotalDuty);
+          }
+        }
+        totalDuty = currtotalDuty;
+        weekdays = wkdaysd;
+        weekends = wkendsd;
+        return {
+          totalDuty: currtotalDuty,
+          weekdaysDuties: wkdaysd,
+          weekendsDuties: wkendsd,
+          weekdays: wkday,
+          weekends: wkend,
+        };
       }
       function handleInput(e) {
         let inputs = document.querySelectorAll("input");
@@ -471,10 +598,13 @@
           }
         }
         document.querySelector("#dutycount").innerHTML =
-          "Number of Duties, Total: " + dutyCount;
-        totalDuty = dutyCount;
+          "Number of Duties, Total Duty Count: " +
+          dutyCount +
+          " Total Duties Needed: " +
+          totalDuty;
       }
       function setNoOfDuty() {
+        dates = totalDutyCount();
         let table = document.createElement("table");
         let row = table.insertRow();
         let name = row.insertCell();
@@ -523,7 +653,6 @@
       }
       function createSchedule() {
         //responses * no of duty
-
         for (let i = 0; i < responses.length; i++) {
           for (let x = 0; x < noOfDuty[i]; x++) {
             preferences.push(responses[i]);
@@ -532,14 +661,17 @@
           }
         }
         for (let i = 0; i < preferences.length; i++) {
-          totalScores.push(getScoresArray(preferences[i], excluded[i]));
+          totalScores.push(
+            getScoresArray(preferences[i], excluded[i], totalNames[i])
+          );
         }
         let result = lap(totalDuty, totalScores);
+        console.log(result.row);
         log("Schedule Calculated! Press on empty cell to add reserve", "log");
+        //combine weekends
         schedule = mapResultToName(result.row);
         console.log(schedule);
         table = mapDutiesToTableFormat();
-
         createHTMLTable(table);
       }
       function createHTMLTable(tableArr) {
@@ -557,7 +689,6 @@
           }
         }
         document.querySelector("#editor").appendChild(table);
-
         let button = document.createElement("button");
         button.setAttribute("onclick", "download()");
         button.innerHTML = "Export as CSV";
